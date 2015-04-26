@@ -1,6 +1,6 @@
 ## Working solution for the Practical Machine Learning project
 
-* Read the html report file here: http://henfiber.github.io/pml-project/prediction.html
+* Read the html report file here: http://henfiber.github.io/pml-project/prediction
 
 
 ## Introduction
