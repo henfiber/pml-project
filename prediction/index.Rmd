@@ -1,0 +1,115 @@
+---
+title: "Human Activity Recognition / Analysis"
+author: "henfiber"
+output: html_document
+---
+
+``` {r global_options, include=FALSE}
+library(knitr)  # knit for this report
+opts_chunk$set(warning=FALSE, message=FALSE, error=FALSE)
+```
+
+``` {r libraries, include=FALSE}
+library(plyr); library(ggplot2);
+library(caret); library(kernlab); library(e1071)
+```
+
+   
+   
+## Goal
+
+The goal is to predict how well 6 participants did barbell lifts using data from accelerometers on their belt, forearm, arm and dumbell.
+The participants were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+Thus, the goal is to train a model to predict which of the 5 different ways the exercise was performed.
+
+
+
+## Data Reduction
+
+The training and test sets contain summary statistics which have been removed for modelling purposes (most of the entries of these summary columns are NA).
+Additionally, the various non-numeric features, such as the user_name and timestamp have been removed as they are not useful for the model.
+
+
+
+``` {r read_in_data, cache=TRUE}
+# Load training and test sets
+testing <- read.csv(unz("data/pml-testing.zip", "pml-testing.csv"))
+training <- read.csv(unz("data/pml-training.zip", "pml-training.csv"))
+```
+
+```{r pre_processing}
+# Remove summary columns (avg, stddev, kurtosis, skewness, max, min, amplitude and var columns)
+# Also remove non-numeric cols (user_name, X, time stamps and window cols)
+
+removeCols <- grep("^kurt|^avg|^stddev|^var|^skewness|^max|^min|^amp|^total|timestamp|window|user_name", names(training))
+removeCols <- c(removeCols, 1) # also remove the first id column
+trainingSet <- training[,-removeCols]
+
+removeCols <- grep("^kurt|^avg|^stddev|^var|^skewness|^max|^min|^amp|^total|timestamp|window|user_name", names(testing))
+removeCols <- c(removeCols, 1) # also remove the first id column
+testingSet <- testing[,-removeCols]
+```
+
+
+## Prediction Algorithm
+
+The build the prediction model, we normalize the predictor variables (center and scale).
+Then we feed them into an SVM with radial basis functions and 10-fold cross-validation.
+Using SVM with cross-validation provides robust classification (We expect that the training error should be less that 10%)
+
+
+``` {r training_chunk, cache=TRUE}
+	
+	# If the model has already been built, load it from disk
+	if(file.exists("svm_model.rda")){
+		load("svm_model.rda")
+	} else {
+		# Support vector machine fit with K-fold cross-validation
+		K = 10   # 10-fold cross-validation
+		set.seed(123)
+		ctrl <- trainControl(method="cv",
+							number = K,
+							savePred=T)
+
+		modFit <- train(classe ~ ., data=trainingSet,
+						method='svmRadial',
+						preProc=c("center", "scale"),
+						trControl = ctrl)
+	}
+
+```
+
+
+The section below show the results of the prediction:
+
+``` {r echo = FALSE, warning = FALSE, message = FALSE}
+	 modFit
+```
+
+
+and the best final model:
+
+
+``` {r echo = FALSE, warning = FALSE, message = FALSE}
+modFit$finalModel
+```
+
+
+Our estimate for the out-of-sample error can be now obtained : (`r round(modFit$finalModel@error*100,2)`%).
+The plotting of the model fit shows how the training accuracy varies with the SVM cost parameter (varied automatically by the SVM algorithm).
+
+``` {r echo = FALSE, warning = FALSE, message = FALSE, fig.align = 'center'}
+	 p <- ggplot(modFit)
+	 p <- p + ggtitle("SVM - Training Accuracy Vs Penalty Cost")
+	 print(p)
+```
+
+
+## Conclusion
+
+In conclusion, we used SVM with RBF kernel and 10-fold cross-validation to obtain a classification prediction model. 
+The model appears to be quite accurate (`r round(modFit$results[3,3]*100,1)`%) with a low out-of-sample error (`r round(modFit$finalModel@error*100,2)`%).
+
+
