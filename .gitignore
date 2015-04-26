@@ -1,0 +1,16 @@
+
+# Ignore R history/data files
+.RData
+.Rhistory
+
+# ignore .rda files
+*.rda
+*.Rda
+
+# ignore index_cache
+index_cache/
+
+# Ignore linux editor files
+*~
+
+
